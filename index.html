@@ -219,6 +219,40 @@
     .timeline-item.active { background: linear-gradient(180deg, #fff6f7, #fff); border-color: rgba(181,31,46,0.18); color: var(--primary); font-weight: 700; }
     .timeline-item.done { background: #f0fdf4; border-color: #bbf7d0; color: var(--green); }
 
+    .progress-card {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #fff6f7, #ffffff);
+      border: 1px solid rgba(181,31,46,0.14);
+    }
+    .progress-card .small {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .progress-card .big {
+      font-weight: 800;
+      font-size: 18px;
+      color: var(--primary);
+    }
+    .progress-line {
+      margin-top: 12px;
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #f1f5f9;
+    }
+    .progress-line span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      transition: width .35s ease;
+      background: linear-gradient(90deg, var(--primary), #d13848);
+    }
+
     .result-wrap { display: none; }
     .result-wrap.show { display: block; animation: fadeIn .35s ease; }
     .result-banner {
@@ -242,6 +276,37 @@
     code {
       display: inline-block; background: #eef2ff; color: #3730a3; padding: 2px 8px; border-radius: 8px; font-size: 13px;
     }
+
+    .change-table-wrap {
+      margin-top: 18px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid #e6edf6;
+      background: #fff;
+    }
+    .change-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .change-table th,
+    .change-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #eef2f7;
+      text-align: left;
+      vertical-align: top;
+    }
+    .change-table th {
+      background: #f8fafc;
+      color: #334155;
+      font-size: 13px;
+    }
+    .change-table tr:last-child td {
+      border-bottom: none;
+    }
+    .change-pos { color: var(--green); font-weight: 700; }
+    .change-neg { color: var(--primary); font-weight: 700; }
+    .change-neutral { color: var(--muted); font-weight: 700; }
 
     .cover {
       text-align: center; padding: 40px 24px 28px;
@@ -312,7 +377,12 @@
         </div> -->
 
         <h3 class="section-title" style="margin-top:18px;">关卡进度</h3>
-        <div class="timeline" id="timeline"></div>
+        <div class="progress-card">
+          <div class="small">当前进度</div>
+          <div class="big" id="progressText">尚未开始</div>
+          <div class="progress-line"><span id="progressBar"></span></div>
+        </div>
+        <div class="timeline" id="timeline" style="display:none;"></div>
       </aside>
 
       <main>
@@ -334,7 +404,7 @@
           </section>
 
           <section id="stageView" style="display:none;">
-            <div class="stage-head">
+            <div class="stage-head" id="stageHead">
               <div style="display:flex; gap:14px; align-items:flex-start;">
                 <div class="stage-no" id="stageNo">1</div>
                 <div>
@@ -346,7 +416,7 @@
             </div>
 
             <div class="stage-body" id="stagePrompt"></div>
-            <div class="ref-box"><strong>历史参照：</strong><span id="stageRef"></span></div>
+            <div class="ref-box" id="stageRefBox"><strong>历史参照：</strong><span id="stageRef"></span></div>
 
             <div class="choices" id="choicesWrap"></div>
 
@@ -394,6 +464,20 @@
               <div class="quote" id="highlightQuote"></div>
               <div class="ref-box" style="margin-top:16px;background:linear-gradient(180deg,#f8fbff,#ffffff);border-color:#dbeafe;">
                 <strong style="color:#1d4ed8;">结局例证：</strong><span id="endingExample"></span>
+              </div>
+              <div class="change-table-wrap">
+                <table class="change-table">
+                  <thead>
+                    <tr>
+                      <th>关卡</th>
+                      <th>选择</th>
+                      <th>技术自主度</th>
+                      <th>经济繁荣度</th>
+                      <th>国际影响力</th>
+                    </tr>
+                  </thead>
+                  <tbody id="changeTableBody"></tbody>
+                </table>
               </div>
               <div class="editor">
                 <strong>评价标准的本质：</strong>
@@ -651,14 +735,18 @@
       influenceValue: document.getElementById('influenceValue'),
       topTech: document.getElementById('topTech'),
       topEcon: document.getElementById('topEcon'),
+      progressText: document.getElementById('progressText'),
+      progressBar: document.getElementById('progressBar'),
       timeline: document.getElementById('timeline'),
       coverView: document.getElementById('coverView'),
       stageView: document.getElementById('stageView'),
       resultView: document.getElementById('resultView'),
+      stageHead: document.getElementById('stageHead'),
       stageNo: document.getElementById('stageNo'),
       stageKicker: document.getElementById('stageKicker'),
       stageTitle: document.getElementById('stageTitle'),
       stagePrompt: document.getElementById('stagePrompt'),
+      stageRefBox: document.getElementById('stageRefBox'),
       stageRef: document.getElementById('stageRef'),
       roundMeta: document.getElementById('roundMeta'),
       choicesWrap: document.getElementById('choicesWrap'),
@@ -681,10 +769,23 @@
       endingYouth: document.getElementById('endingYouth'),
       endingExample: document.getElementById('endingExample'),
       highlightQuote: document.getElementById('highlightQuote'),
-      endingPrinciple: document.getElementById('endingPrinciple')
+      endingPrinciple: document.getElementById('endingPrinciple'),
+      changeTableBody: document.getElementById('changeTableBody')
     };
 
     function clamp(n) { return Math.max(0, Math.min(100, n)); }
+
+    function formatDelta(value) {
+      if (value > 0) return `+${value}%`;
+      if (value < 0) return `${value}%`;
+      return '0%';
+    }
+
+    function deltaClass(value) {
+      if (value > 0) return 'change-pos';
+      if (value < 0) return 'change-neg';
+      return 'change-neutral';
+    }
 
     function updateMeters() {
       els.techBar.style.width = clamp(state.tech) + '%';
@@ -709,12 +810,55 @@
       });
     }
 
+    function updateProgress() {
+      if (state.index < 0) {
+        els.progressText.textContent = '尚未开始';
+        els.progressBar.style.width = '0%';
+        return;
+      }
+
+      const completed = state.history.length;
+      const current = Math.min(state.index + 1, GAME_CONFIG.stages.length);
+      const progressCount = state.answered ? completed : current - 1;
+      const label = state.answered
+        ? `已完成 ${completed} / ${GAME_CONFIG.stages.length} 关`
+        : `第 ${current} / ${GAME_CONFIG.stages.length} 关`;
+
+      els.progressText.textContent = label;
+      els.progressBar.style.width = `${(progressCount / GAME_CONFIG.stages.length) * 100}%`;
+    }
+
+    function setStageMode(mode) {
+      const showQuestion = mode === 'question';
+      els.stageHead.style.display = showQuestion ? 'flex' : 'none';
+      els.stagePrompt.style.display = showQuestion ? 'block' : 'none';
+      els.stageRefBox.style.display = showQuestion ? 'block' : 'none';
+      els.choicesWrap.style.display = showQuestion ? 'grid' : 'none';
+      els.feedbackBox.classList.toggle('show', !showQuestion);
+    }
+
+    function renderChangeTable() {
+      els.changeTableBody.innerHTML = '';
+      state.history.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>第 ${item.stage + 1} 关</td>
+          <td>${item.choice}：${item.title}</td>
+          <td class="${deltaClass(item.delta.tech || 0)}">${formatDelta(item.delta.tech || 0)}</td>
+          <td class="${deltaClass(item.delta.econ || 0)}">${formatDelta(item.delta.econ || 0)}</td>
+          <td class="${deltaClass(item.delta.influence || 0)}">${formatDelta(item.delta.influence || 0)}</td>
+        `;
+        els.changeTableBody.appendChild(tr);
+      });
+    }
+
     function showCover() {
       els.coverView.style.display = 'block';
       els.stageView.style.display = 'none';
       els.resultView.classList.remove('show');
       renderTimeline();
       updateMeters();
+      updateProgress();
     }
 
     function startGame() {
@@ -730,7 +874,7 @@
     function renderStage() {
       const stage = GAME_CONFIG.stages[state.index];
       renderTimeline();
-      els.feedbackBox.classList.remove('show');
+      setStageMode('question');
       els.stageNo.textContent = state.index + 1;
       els.stageKicker.textContent = stage.kicker;
       els.stageTitle.textContent = stage.title;
@@ -750,15 +894,13 @@
             <span class="pill ${choice.id === 'B' ? 'tech' : 'econ'}">${choice.id === 'B' ? '主权导向' : '短期收益导向'}</span>
           </div>
           <div>${choice.text}</div>
-          <div class="delta">
-            <span class="${choice.delta.tech >= 0 ? 'up-tech' : 'down-tech'}">技术自主度 ${choice.delta.tech >= 0 ? '+' : ''}${choice.delta.tech}%</span>
-            <span class="${choice.delta.econ >= 0 ? 'up-econ' : 'down-econ'}">经济繁荣度 ${choice.delta.econ >= 0 ? '+' : ''}${choice.delta.econ}%</span>
-          </div>
         `;
         btn.addEventListener('click', () => choose(choice, btn));
         els.choicesWrap.appendChild(btn);
       });
       updateMeters();
+      updateProgress();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function choose(choice, btn) {
@@ -769,8 +911,9 @@
       state.tech += choice.delta.tech || 0;
       state.econ += choice.delta.econ || 0;
       state.influence += choice.delta.influence || 0;
-      state.history.push({ stage: state.index, choice: choice.id, title: choice.title });
+      state.history.push({ stage: state.index, choice: choice.id, title: choice.title, delta: { ...choice.delta } });
       updateMeters();
+      updateProgress();
 
       [...els.choicesWrap.querySelectorAll('.choice')].forEach(c => {
         c.disabled = true;
@@ -788,8 +931,8 @@
       els.feedbackExample.textContent = choice.example || '本关未设置展开例子。';
       els.feedbackHint.textContent = state.index === GAME_CONFIG.stages.length - 1 ? '请点击“查看最终结局”。' : '请点击“进入下一关”继续。';
       els.nextBtn.textContent = state.index === GAME_CONFIG.stages.length - 1 ? '查看最终结局' : '进入下一关';
-      els.feedbackBox.classList.add('show');
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      setStageMode('result');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function nextStage() {
@@ -819,6 +962,8 @@
       els.highlightQuote.textContent = GAME_CONFIG.highlight;
       els.endingExample.textContent = ending.example || '该结局未设置例证。';
       els.endingPrinciple.textContent = GAME_CONFIG.principle;
+      renderChangeTable();
+      updateProgress();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
